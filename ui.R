@@ -6,10 +6,8 @@ shinyUI(fluidPage(
   # Application title
   titlePanel("One-Way ANOVA Calculator"),
   
-  # Sidebar with controls to select the random distribution type
-  # and number of observations to generate. Note the use of the
-  # br() element to introduce extra vertical spacing
   fluidRow(
+    # Input column
     column(3,inputPanel(
       radioButtons("atype", "Test type:",
                    c("Independent Measures" = "indep",
@@ -33,11 +31,13 @@ shinyUI(fluidPage(
       actionButton("clr", label = "Clear")
     )),
     
+    # Box(type)-plot and data frame
     column(3,wellPanel(
       plotOutput("plot"),
       verbatimTextOutput("summary")
     )),
     
+    # F-distribution, subject x condition table, and ANOVA-table
     column(6,wellPanel(
       plotOutput("Fplot"),
       tableOutput("summary_mat"),

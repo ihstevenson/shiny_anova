@@ -3,10 +3,7 @@ library(shiny)
 # Define server logic for random distribution application
 shinyServer(function(input, output, clientData, session) {
   
-  # Reactive expression to generate the requested distribution.
-  # This is called whenever the inputs change. The output
-  # functions defined below then all use the value computed from
-  # this expression
+  # Reactive expression to convert text input to data frame
   get.datalist <- reactive({
     ttt<-c(input$text1,input$text2,input$text3,input$text4,input$text5,
            input$text6,input$text7,input$text8)
@@ -31,6 +28,7 @@ shinyServer(function(input, output, clientData, session) {
     
   })
   
+  # implementation for the "clear" button
   observeEvent(input$clr, {
     print("clearing...")
     updateTextInput(session, "text1",value = "")
@@ -43,6 +41,7 @@ shinyServer(function(input, output, clientData, session) {
     updateTextInput(session, "text8",value = "")
   })
   
+  # convert data frame to a subject x condition table
   get.datamat <- function(df) {
     st <- matrix(,nrow=dim(df)[1],ncol=max(as.numeric(df$condition)))
     count<-1:max(as.numeric(df$condition));
@@ -50,7 +49,6 @@ shinyServer(function(input, output, clientData, session) {
     for (i in 1:dim(df)[1]) {
       st[count[as.numeric(df[i,1])],as.numeric(df[i,1])] <- as.numeric(df[i,2])
       count[as.numeric(df[i,1])] = count[as.numeric(df[i,1])]+1;
-      #print(st)
     }
     st<-st[1:(max(count)-1),]
     st<-data.frame(st)
@@ -75,23 +73,14 @@ shinyServer(function(input, output, clientData, session) {
   }
   
   
-  # Generate a plot of the data. Also uses the inputs to build
-  # the plot label. Note that the dependencies on both the inputs
-  # and the data reactive expression are both tracked, and
-  # all expressions are called in the sequence implied by the
-  # dependency graph
+  # Plot the data as a mean+/-sd box plot with individual points
   output$plot <- renderPlot({
     my.data <- get.datalist()
     
     x <- 1:length(unique(my.data$condition))
     avg <- aggregate(my.data,by=list(my.data$condition),FUN=mean)[[3]];
     sdev <- aggregate(my.data,by=list(my.data$condition),FUN=sd)[[3]];
-    sdev[!is.finite(sdev)] <- 0;
-    
-    #print(x)
-    #print(avg)
-    #print(sdev)
-    
+    sdev[!is.finite(sdev)] <- 0;  
     plot(x, avg,
          xlim=range(as.numeric(my.data$condition))+c(-0.5,0.5),ylim=range(c(my.data$value,avg+sdev,avg-sdev)),
          pch=19, xlab="Conditions", ylab="Mean +/- SD",frame=F,xaxt="n")
@@ -100,6 +89,7 @@ shinyServer(function(input, output, clientData, session) {
     arrows(x, avg-sdev, x, avg+sdev, length=0.05, angle=90, code=3)
   })
   
+  # Plot the corresponding F distribution
   output$Fplot <- renderPlot({
     tcol="orange"      # fill colors
     acol="orangered"   # color for added samples
@@ -121,7 +111,7 @@ shinyServer(function(input, output, clientData, session) {
     xcr<-x0[x0>qf(1-input$alpha,df1,df2)];
     polygon(c(xcr[1],xcr,10),c(0,y0[x0>qf(1-input$alpha,df1,df2)],0),col=tcol)
     
-
+    # run anova to get the F statistic (this could be improved!)
     if (input$atype == "indep") {
       aov.ex2 = aov(value~condition,data=get.datalist())
       ft<-summary(aov.ex2)[[1]][["F value"]][1]
@@ -133,17 +123,17 @@ shinyServer(function(input, output, clientData, session) {
     
   })
   
-  # Generate a summary of the data
+  # Show data frame
   output$summary <- renderPrint({
     print(get.datalist())
   })
   
-  # Generate a summary of the data
+  # Show subjects x conditions table
   output$summary_mat <- renderTable({
     get.datamat(get.datalist())
   })
   
-  # Generate an HTML table view of the data
+  # Generate xtable for the F-test with clearer labels and total SS
   output$table <- renderTable({
     if (input$atype == "indep") {
       aov.ex2 = aov(value~condition,data=get.datalist())
